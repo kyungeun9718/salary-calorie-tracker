@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>실시간 월급 &amp; 칼로리 트래커</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0b0e1a;
+    --bg2: #131832;
+    --card-bg: #161a2e;
+    --text: #eef1ff;
+    --sub: #8b93c4;
+    --border: #2a2f52;
+    --input-bg: #1c2140;
+    --neon-blue: #00e5ff;
+    --neon-blue-2: #4f7dff;
+    --neon-orange: #ff7a1a;
+    --neon-pink: #ff2e63;
+    --pixel: 'Press Start 2P', 'Courier New', monospace;
+    --game-kr: 'Black Han Sans', -apple-system, "Apple SD Gothic Neo", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Segoe UI", Roboto, sans-serif;
+    background:
+      radial-gradient(circle at 50% -10%, #1c2452 0%, transparent 60%),
+      var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    position: relative;
+  }
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background: repeating-linear-gradient(
+      to bottom,
+      rgba(255,255,255,0.025) 0px,
+      rgba(255,255,255,0.025) 1px,
+      transparent 2px,
+      transparent 4px
+    );
+    z-index: 999;
+  }
+  .app {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 24px 16px 60px;
+    position: relative;
+  }
+  h1 {
+    font-family: var(--game-kr);
+    font-size: 24px;
+    font-weight: 400;
+    text-align: center;
+    margin: 8px 0 14px;
+    color: #fff;
+    text-shadow: 0 0 6px var(--neon-blue), 0 0 16px rgba(0,229,255,0.5);
+    letter-spacing: 0.5px;
+    line-height: 1.4;
+  }
+  .subtitle {
+    text-align: center;
+    color: var(--sub);
+    font-size: 13px;
+    margin-bottom: 28px;
+    letter-spacing: 0.3px;
+  }
+
+  .pixel-corners {
+    clip-path: polygon(
+      0 10px, 10px 10px, 10px 0,
+      calc(100% - 10px) 0, calc(100% - 10px) 10px, 100% 10px,
+      100% calc(100% - 10px), calc(100% - 10px) calc(100% - 10px), calc(100% - 10px) 100%,
+      10px 100%, 10px calc(100% - 10px), 0 calc(100% - 10px)
+    );
+  }
+
+  .panel {
+    background: var(--card-bg);
+    border: 2px solid var(--border);
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .panel h2 {
+    font-family: var(--game-kr);
+    font-weight: 400;
+    font-size: 18px;
+    margin: 0 0 16px;
+    color: #fff;
+  }
+  .field { margin-bottom: 14px; }
+  .field label {
+    display: block;
+    font-size: 12px;
+    color: var(--sub);
+    margin-bottom: 6px;
+  }
+  .field input[type="number"],
+  .field input[type="time"],
+  .field select {
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: 6px;
+    border: 2px solid var(--border);
+    background: var(--input-bg);
+    color: var(--text);
+    font-size: 15px;
+  }
+  .field input:focus, .field select:focus {
+    outline: none;
+    border-color: var(--neon-blue);
+  }
+  .row { display: flex; gap: 10px; }
+  .row .field { flex: 1; }
+  .tabs { display: flex; gap: 8px; margin-bottom: 14px; }
+  .tab {
+    flex: 1;
+    text-align: center;
+    padding: 10px 6px;
+    border-radius: 6px;
+    border: 2px solid var(--border);
+    background: var(--input-bg);
+    cursor: pointer;
+    font-family: var(--game-kr);
+    font-size: 13px;
+    color: var(--sub);
+    transition: transform 0.05s ease;
+  }
+  .tab.active {
+    background: var(--neon-blue-2);
+    border-color: var(--neon-blue);
+    color: #fff;
+    font-weight: 700;
+    box-shadow: 0 0 10px rgba(0,229,255,0.5);
+  }
+  .tab:active { transform: translateY(1px); }
+  .days { display: flex; gap: 6px; flex-wrap: wrap; }
+  .day-chip {
+    padding: 8px 0;
+    width: 40px;
+    text-align: center;
+    border-radius: 6px;
+    border: 2px solid var(--border);
+    background: var(--input-bg);
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--sub);
+  }
+  .day-chip.active {
+    background: var(--neon-blue-2);
+    border-color: var(--neon-blue);
+    color: #fff;
+  }
+
+  /* pixel arcade button */
+  .pixel-btn {
+    width: 100%;
+    padding: 16px;
+    border: none;
+    background: var(--neon-blue-2);
+    color: #fff;
+    font-family: var(--game-kr);
+    font-size: 16px;
+    cursor: pointer;
+    margin-top: 6px;
+    box-shadow: 0 5px 0 #1b3d99, 0 5px 14px rgba(0,229,255,0.35);
+    transition: transform 0.06s ease, box-shadow 0.06s ease;
+    letter-spacing: 0.5px;
+  }
+  .pixel-btn:active {
+    transform: translateY(4px);
+    box-shadow: 0 1px 0 #1b3d99;
+  }
+  .ghost-btn {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid var(--border);
+    background: transparent;
+    color: var(--text);
+    font-size: 14px;
+    cursor: pointer;
+    margin-top: 10px;
+    font-family: var(--game-kr);
+    letter-spacing: 0.5px;
+  }
+  .ghost-btn:active { transform: translateY(2px); }
+
+  #live-screen { display: none; }
+
+  .card {
+    padding: 26px 22px;
+    margin-bottom: 20px;
+    color: #fff;
+    position: relative;
+    overflow: hidden;
+    border: 3px solid;
+  }
+  .card.salary {
+    background: linear-gradient(160deg, #0f1636, #182052 60%, #101a3d);
+    border-color: var(--neon-blue);
+    box-shadow: 0 0 18px rgba(0,229,255,0.35), inset 0 0 30px rgba(0,229,255,0.06);
+  }
+  .card.calorie {
+    background: linear-gradient(160deg, #331207, #4a1a0a 60%, #2a0d05);
+    border-color: var(--neon-orange);
+    box-shadow: 0 0 18px rgba(255,122,26,0.35), inset 0 0 30px rgba(255,122,26,0.08);
+  }
+  .card-icon {
+    position: absolute;
+    top: 18px;
+    right: 20px;
+    font-size: 26px;
+    animation: bob 1.6s ease-in-out infinite;
+  }
+  .card.calorie .card-icon { animation: flicker 1s ease-in-out infinite; }
+  @keyframes bob {
+    0%, 100% { transform: translateY(0) rotate(-6deg); }
+    50% { transform: translateY(-6px) rotate(6deg); }
+  }
+  @keyframes flicker {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.12); opacity: 0.75; }
+  }
+  .card .label {
+    font-size: 12px;
+    opacity: 0.85;
+    margin-bottom: 10px;
+    letter-spacing: 0.5px;
+  }
+  .card .status {
+    font-family: var(--game-kr);
+    font-size: 12px;
+    opacity: 0.95;
+    margin-bottom: 16px;
+    display: inline-block;
+    padding: 5px 10px;
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.3);
+  }
+  .card .value {
+    font-family: var(--pixel);
+    font-size: 30px;
+    letter-spacing: 0px;
+    font-variant-numeric: tabular-nums;
+    word-break: break-all;
+    line-height: 1.4;
+  }
+  .card.salary .value { text-shadow: 0 0 10px var(--neon-blue); }
+  .card.calorie .value { text-shadow: 0 0 10px var(--neon-orange); }
+  .card .value .unit {
+    font-size: 13px;
+    margin-left: 4px;
+    opacity: 0.85;
+  }
+  .card .rate {
+    margin-top: 14px;
+    font-size: 12px;
+    opacity: 0.85;
+    line-height: 1.6;
+  }
+  .card .manual-controls { margin-top: 18px; }
+  .card .manual-controls button {
+    padding: 10px 20px;
+    border: 2px solid rgba(255,255,255,0.6);
+    background: rgba(255,255,255,0.12);
+    color: #fff;
+    cursor: pointer;
+    font-size: 14px;
+    font-family: var(--game-kr);
+  }
+  .card .manual-controls button:active { transform: translateY(2px); }
+
+  .popup-layer {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+  .popup {
+    position: absolute;
+    font-family: var(--pixel);
+    font-size: 12px;
+    font-weight: 700;
+    color: #fff;
+    text-shadow: 0 0 6px currentColor;
+    animation: popup-float 1.6s ease-out forwards;
+    white-space: nowrap;
+  }
+  @keyframes popup-float {
+    0% { transform: translateY(0) scale(0.7); opacity: 0; }
+    15% { transform: translateY(-8px) scale(1); opacity: 1; }
+    100% { transform: translateY(-64px) scale(1); opacity: 0; }
+  }
+
+  .compare {
+    text-align: center;
+    padding: 18px;
+    color: var(--sub);
+    font-size: 13px;
+    line-height: 1.7;
+    background: var(--card-bg);
+    border: 2px solid var(--border);
+  }
+  .compare b { color: #fff; }
+
+  #levelup-toast {
+    position: fixed;
+    top: -100px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #16193a;
+    border: 3px solid #ffd500;
+    color: #ffd500;
+    font-family: var(--game-kr);
+    font-size: 16px;
+    padding: 14px 20px;
+    z-index: 1000;
+    box-shadow: 0 0 24px rgba(255,213,0,0.6);
+    transition: top 0.4s cubic-bezier(.34,1.56,.64,1);
+    text-align: center;
+    white-space: nowrap;
+  }
+  #levelup-toast.show { top: 20px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <h1>실시간 월급 &amp; 칼로리 트래커</h1>
+  <div class="subtitle">1초에 얼마나 벌고, 얼마나 태울까?</div>
+
+  <section id="setup-screen">
+    <div class="panel pixel-corners">
+      <h2>💰 급여</h2>
+      <div class="field">
+        <label>월급 (세후 실수령액, 원)</label>
+        <input type="number" id="monthlySalary" placeholder="예: 3000000" min="0">
+      </div>
+
+      <div class="tabs" id="salaryModeTabs">
+        <div class="tab active" data-mode="work">근무시간만</div>
+        <div class="tab" data-mode="24h">24시간 항상</div>
+        <div class="tab" data-mode="manual">수동 시작/종료</div>
+      </div>
+
+      <div id="mode-work-fields">
+        <div class="row">
+          <div class="field">
+            <label>출근 시각</label>
+            <input type="time" id="workStart" value="09:00">
+          </div>
+          <div class="field">
+            <label>퇴근 시각</label>
+            <input type="time" id="workEnd" value="18:00">
+          </div>
+        </div>
+        <div class="field">
+          <label>근무 요일</label>
+          <div class="days" id="workDaysPicker">
+            <div class="day-chip active" data-day="1">월</div>
+            <div class="day-chip active" data-day="2">화</div>
+            <div class="day-chip active" data-day="3">수</div>
+            <div class="day-chip active" data-day="4">목</div>
+            <div class="day-chip active" data-day="5">금</div>
+            <div class="day-chip" data-day="6">토</div>
+            <div class="day-chip" data-day="0">일</div>
+          </div>
+        </div>
+        <div class="field">
+          <label>월 근무일수 (급여 산정 기준)</label>
+          <input type="number" id="monthlyWorkDaysWork" value="21" min="1" max="31">
+        </div>
+      </div>
+
+      <div id="mode-manual-fields" style="display:none;">
+        <div class="row">
+          <div class="field">
+            <label>하루 근무시간 (시간)</label>
+            <input type="number" id="dailyHoursManual" value="8" min="0" step="0.5">
+          </div>
+          <div class="field">
+            <label>월 근무일수</label>
+            <input type="number" id="monthlyWorkDaysManual" value="21" min="1" max="31">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel pixel-corners">
+      <h2>🔥 신체 정보</h2>
+      <div class="row">
+        <div class="field">
+          <label>성별</label>
+          <select id="gender">
+            <option value="male">남성</option>
+            <option value="female">여성</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>나이</label>
+          <input type="number" id="age" placeholder="예: 30" min="1" max="120">
+        </div>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label>키 (cm)</label>
+          <input type="number" id="height" placeholder="예: 170" min="50" max="250">
+        </div>
+        <div class="field">
+          <label>몸무게 (kg)</label>
+          <input type="number" id="weight" placeholder="예: 65" min="20" max="300">
+        </div>
+      </div>
+      <div class="field">
+        <label>활동 수준</label>
+        <select id="activityFactor">
+          <option value="1.2">거의 안 움직임 (좌식 생활)</option>
+          <option value="1.375">가벼운 활동 (주 1~3일 운동)</option>
+          <option value="1.55" selected>보통 활동 (주 3~5일 운동)</option>
+          <option value="1.725">활동적 (주 6~7일 운동)</option>
+          <option value="1.9">매우 활동적 (육체노동/매일 강도 높은 운동)</option>
+        </select>
+      </div>
+    </div>
+
+    <button class="pixel-btn pixel-corners" id="startBtn">▶ 실시간으로 보기 시작</button>
+  </section>
+
+  <section id="live-screen">
+    <div class="card salary pixel-corners">
+      <span class="card-icon">🪙</span>
+      <div class="label" id="salaryLabel">오늘 지금까지 번 돈</div>
+      <div class="status" id="salaryStatus">계산 중</div>
+      <div class="value"><span id="salaryValue">0</span><span class="unit">원</span></div>
+      <div class="rate" id="salaryRate"></div>
+      <div class="manual-controls" id="manualControls" style="display:none;">
+        <button id="manualToggleBtn">근무 시작</button>
+      </div>
+      <div class="popup-layer" id="salaryPopupLayer"></div>
+    </div>
+
+    <div class="card calorie pixel-corners">
+      <span class="card-icon">🔥</span>
+      <div class="label">오늘 지금까지 소모한 칼로리</div>
+      <div class="status" id="calorieStatus">기초대사량 + 활동량 기준</div>
+      <div class="value"><span id="calorieValue">0</span><span class="unit">kcal</span></div>
+      <div class="rate" id="calorieRate"></div>
+      <div class="popup-layer" id="caloriePopupLayer"></div>
+    </div>
+
+    <div class="compare pixel-corners" id="compareText"></div>
+
+    <button class="ghost-btn pixel-corners" id="editBtn">설정 변경하기</button>
+  </section>
+
+  <div id="levelup-toast"></div>
+</div>
+
+<script>
+(function () {
+  const STORAGE_KEY = 'salaryCalorieTrackerState';
+
+  const setupScreen = document.getElementById('setup-screen');
+  const liveScreen = document.getElementById('live-screen');
+
+  const monthlySalaryEl = document.getElementById('monthlySalary');
+  const workStartEl = document.getElementById('workStart');
+  const workEndEl = document.getElementById('workEnd');
+  const monthlyWorkDaysWorkEl = document.getElementById('monthlyWorkDaysWork');
+  const dailyHoursManualEl = document.getElementById('dailyHoursManual');
+  const monthlyWorkDaysManualEl = document.getElementById('monthlyWorkDaysManual');
+  const genderEl = document.getElementById('gender');
+  const ageEl = document.getElementById('age');
+  const heightEl = document.getElementById('height');
+  const weightEl = document.getElementById('weight');
+  const activityFactorEl = document.getElementById('activityFactor');
+
+  const modeWorkFields = document.getElementById('mode-work-fields');
+  const modeManualFields = document.getElementById('mode-manual-fields');
+  const salaryModeTabs = document.getElementById('salaryModeTabs');
+  const workDaysPicker = document.getElementById('workDaysPicker');
+
+  let salaryMode = 'work';
+  let workDays = new Set([1, 2, 3, 4, 5]);
+
+  salaryModeTabs.addEventListener('click', (e) => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    salaryMode = tab.dataset.mode;
+    [...salaryModeTabs.children].forEach(t => t.classList.toggle('active', t === tab));
+    modeWorkFields.style.display = salaryMode === 'work' ? '' : 'none';
+    modeManualFields.style.display = salaryMode === 'manual' ? '' : 'none';
+  });
+
+  workDaysPicker.addEventListener('click', (e) => {
+    const chip = e.target.closest('.day-chip');
+    if (!chip) return;
+    const d = Number(chip.dataset.day);
+    if (workDays.has(d)) { workDays.delete(d); chip.classList.remove('active'); }
+    else { workDays.add(d); chip.classList.add('active'); }
+  });
+
+  function loadState() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) { return null; }
+  }
+
+  function saveState(state) {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    } catch (e) {
+      // 저장 공간을 못 쓰는 환경(예: 사파리의 file:// 제한)이어도 실시간 화면은 계속 동작해야 함
+    }
+  }
+
+  function collectState(prevManualStart) {
+    return {
+      monthlySalary: Number(monthlySalaryEl.value) || 0,
+      salaryMode,
+      workStart: workStartEl.value || '09:00',
+      workEnd: workEndEl.value || '18:00',
+      workDays: [...workDays],
+      monthlyWorkDaysWork: Number(monthlyWorkDaysWorkEl.value) || 21,
+      dailyHoursManual: Number(dailyHoursManualEl.value) || 8,
+      monthlyWorkDaysManual: Number(monthlyWorkDaysManualEl.value) || 21,
+      gender: genderEl.value,
+      age: Number(ageEl.value) || 0,
+      height: Number(heightEl.value) || 0,
+      weight: Number(weightEl.value) || 0,
+      activityFactor: Number(activityFactorEl.value),
+      manualStart: prevManualStart !== undefined ? prevManualStart : null
+    };
+  }
+
+  function applyStateToForm(state) {
+    monthlySalaryEl.value = state.monthlySalary || '';
+    salaryMode = state.salaryMode || 'work';
+    [...salaryModeTabs.children].forEach(t => t.classList.toggle('active', t.dataset.mode === salaryMode));
+    modeWorkFields.style.display = salaryMode === 'work' ? '' : 'none';
+    modeManualFields.style.display = salaryMode === 'manual' ? '' : 'none';
+
+    workStartEl.value = state.workStart || '09:00';
+    workEndEl.value = state.workEnd || '18:00';
+    workDays = new Set(state.workDays || [1, 2, 3, 4, 5]);
+    [...workDaysPicker.children].forEach(chip => {
+      chip.classList.toggle('active', workDays.has(Number(chip.dataset.day)));
+    });
+    monthlyWorkDaysWorkEl.value = state.monthlyWorkDaysWork || 21;
+    dailyHoursManualEl.value = state.dailyHoursManual || 8;
+    monthlyWorkDaysManualEl.value = state.monthlyWorkDaysManual || 21;
+
+    genderEl.value = state.gender || 'male';
+    ageEl.value = state.age || '';
+    heightEl.value = state.height || '';
+    weightEl.value = state.weight || '';
+    activityFactorEl.value = state.activityFactor || 1.55;
+  }
+
+  // ---- Calculation helpers ----
+  function computeBMR(state) {
+    const { gender, weight, height, age } = state;
+    if (!weight || !height || !age) return 0;
+    const base = 10 * weight + 6.25 * height - 5 * age;
+    return gender === 'female' ? base - 161 : base + 5;
+  }
+
+  function timeStrToDateToday(timeStr, base) {
+    const [h, m] = timeStr.split(':').map(Number);
+    const d = new Date(base);
+    d.setHours(h, m, 0, 0);
+    return d;
+  }
+
+  function computeSalaryInfo(state, now) {
+    const salary = state.monthlySalary;
+    if (!salary) {
+      return { earnings: 0, ratePerSecond: 0, status: '월급을 입력해주세요', label: '지금까지 번 돈' };
+    }
+
+    if (state.salaryMode === '24h') {
+      const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+      const ratePerSecond = salary / (daysInMonth * 86400);
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+      const elapsedSec = Math.max(0, (now - startOfMonth) / 1000);
+      return {
+        earnings: elapsedSec * ratePerSecond,
+        ratePerSecond,
+        status: '계속 누적 중',
+        label: '이번 달 지금까지 번 돈'
+      };
+    }
+
+    if (state.salaryMode === 'manual') {
+      const dailyHours = state.dailyHoursManual;
+      const monthlyWorkDays = state.monthlyWorkDaysManual;
+      const ratePerSecond = (dailyHours > 0 && monthlyWorkDays > 0)
+        ? salary / (dailyHours * monthlyWorkDays * 3600) : 0;
+      if (!state.manualStart) {
+        return { earnings: 0, ratePerSecond, status: '정지됨', label: '지금까지 번 돈' };
+      }
+      const elapsedSec = Math.max(0, (now - new Date(state.manualStart)) / 1000);
+      return { earnings: elapsedSec * ratePerSecond, ratePerSecond, status: '근무 중', label: '지금까지 번 돈' };
+    }
+
+    // 'work' mode
+    const startToday = timeStrToDateToday(state.workStart, now);
+    const endToday = timeStrToDateToday(state.workEnd, now);
+    const dailyHours = Math.max(0, (endToday - startToday) / 3600000);
+    const monthlyWorkDays = state.monthlyWorkDaysWork;
+    const ratePerSecond = (dailyHours > 0 && monthlyWorkDays > 0)
+      ? salary / (dailyHours * monthlyWorkDays * 3600) : 0;
+
+    const isWorkday = state.workDays.includes(now.getDay());
+    if (!isWorkday) {
+      return { earnings: 0, ratePerSecond, status: '오늘은 쉬는 날', label: '오늘 지금까지 번 돈' };
+    }
+    if (now < startToday) {
+      return { earnings: 0, ratePerSecond, status: '근무 시작 전', label: '오늘 지금까지 번 돈' };
+    }
+    if (now > endToday) {
+      const fullDaySec = (endToday - startToday) / 1000;
+      return { earnings: fullDaySec * ratePerSecond, ratePerSecond, status: '오늘 근무 종료', label: '오늘 지금까지 번 돈' };
+    }
+    const elapsedSec = (now - startToday) / 1000;
+    return { earnings: elapsedSec * ratePerSecond, ratePerSecond, status: '근무 중', label: '오늘 지금까지 번 돈' };
+  }
+
+  function computeCalorieInfo(state, now) {
+    const bmr = computeBMR(state);
+    const tdee = bmr * (state.activityFactor || 1);
+    const ratePerSecond = tdee / 86400;
+    const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+    const elapsedSec = (now - midnight) / 1000;
+    return { calories: elapsedSec * ratePerSecond, ratePerSecond, bmr, tdee };
+  }
+
+  // ---- Sound (WebAudio, no external files) ----
+  let audioCtx = null;
+  function ensureAudio() {
+    if (!audioCtx) {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (Ctx) audioCtx = new Ctx();
+    }
+    return audioCtx;
+  }
+  function beep(freq, start, duration, gainPeak) {
+    const ctx = ensureAudio();
+    if (!ctx) return;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'square';
+    osc.frequency.value = freq;
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    const t0 = ctx.currentTime + start;
+    gain.gain.setValueAtTime(0, t0);
+    gain.gain.linearRampToValueAtTime(gainPeak, t0 + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + duration);
+    osc.start(t0);
+    osc.stop(t0 + duration + 0.02);
+  }
+  function playClickSound() {
+    beep(1100, 0, 0.07, 0.05);
+  }
+  function playLevelUpSound() {
+    [660, 880, 1320].forEach((f, i) => beep(f, i * 0.11, 0.16, 0.05));
+  }
+
+  // ---- Popups & level-up ----
+  function spawnPopup(layerEl, text) {
+    const el = document.createElement('div');
+    el.className = 'popup';
+    el.textContent = text;
+    el.style.left = (15 + Math.random() * 55) + '%';
+    el.style.bottom = '76px';
+    layerEl.appendChild(el);
+    setTimeout(() => el.remove(), 1700);
+  }
+
+  const salaryPopupLayer = document.getElementById('salaryPopupLayer');
+  const caloriePopupLayer = document.getElementById('caloriePopupLayer');
+  const levelupToast = document.getElementById('levelup-toast');
+
+  let lastSalaryPopupAt = 0;
+  let lastCaloriePopupAt = 0;
+  let lastCalorieMilestone = null;
+  let levelupTimer = null;
+
+  function showLevelUp(milestone) {
+    levelupToast.textContent = `🔥 LEVEL UP! ${milestone * 100}kcal 돌파!`;
+    levelupToast.classList.add('show');
+    playLevelUpSound();
+    if (levelupTimer) clearTimeout(levelupTimer);
+    levelupTimer = setTimeout(() => levelupToast.classList.remove('show'), 2200);
+  }
+
+  // ---- Live rendering ----
+  let rafId = null;
+  let currentState = null;
+
+  function formatWon(v) {
+    return v.toLocaleString('ko-KR', { maximumFractionDigits: 2, minimumFractionDigits: 2 });
+  }
+  function formatKcal(v) {
+    return v.toLocaleString('ko-KR', { maximumFractionDigits: 3, minimumFractionDigits: 3 });
+  }
+
+  function tick() {
+    const now = new Date();
+    const nowMs = now.getTime();
+    const salaryInfo = computeSalaryInfo(currentState, now);
+    const calorieInfo = computeCalorieInfo(currentState, now);
+
+    document.getElementById('salaryLabel').textContent = salaryInfo.label;
+    document.getElementById('salaryStatus').textContent = salaryInfo.status;
+    document.getElementById('salaryValue').textContent = formatWon(salaryInfo.earnings);
+    document.getElementById('salaryRate').textContent =
+      salaryInfo.ratePerSecond > 0 ? `초당 약 ${salaryInfo.ratePerSecond.toFixed(2)}원 벌고 있어요` : '';
+
+    document.getElementById('calorieValue').textContent = formatKcal(calorieInfo.calories);
+    document.getElementById('calorieRate').textContent =
+      calorieInfo.ratePerSecond > 0
+        ? `초당 약 ${calorieInfo.ratePerSecond.toFixed(4)}kcal · BMR ${Math.round(calorieInfo.bmr)}kcal · TDEE ${Math.round(calorieInfo.tdee)}kcal`
+        : '신체 정보를 입력해주세요';
+
+    const compareEl = document.getElementById('compareText');
+    if (salaryInfo.ratePerSecond > 0 && calorieInfo.ratePerSecond > 0) {
+      const wonPerKcal = salaryInfo.ratePerSecond / calorieInfo.ratePerSecond;
+      compareEl.innerHTML = `1kcal을 태우는 동안 약 <b>${wonPerKcal.toFixed(1)}원</b>을 벌고 있어요.`;
+    } else {
+      compareEl.innerHTML = '';
+    }
+
+    // 초당 벌이 팝업 (+n원)
+    if (salaryInfo.ratePerSecond > 0 && nowMs - lastSalaryPopupAt >= 1000) {
+      lastSalaryPopupAt = nowMs;
+      spawnPopup(salaryPopupLayer, `+${salaryInfo.ratePerSecond.toFixed(2)}원`);
+    }
+    // 5초마다 칼로리 팝업 (더 잘 보이는 값으로)
+    if (calorieInfo.ratePerSecond > 0 && nowMs - lastCaloriePopupAt >= 5000) {
+      lastCaloriePopupAt = nowMs;
+      spawnPopup(caloriePopupLayer, `+${(calorieInfo.ratePerSecond * 5).toFixed(2)}kcal`);
+    }
+
+    // 100kcal 단위 레벨업 연출
+    if (calorieInfo.ratePerSecond > 0) {
+      const milestone = Math.floor(calorieInfo.calories / 100);
+      if (lastCalorieMilestone === null) {
+        lastCalorieMilestone = milestone;
+      } else if (milestone > lastCalorieMilestone) {
+        lastCalorieMilestone = milestone;
+        showLevelUp(milestone);
+      }
+    }
+
+    rafId = requestAnimationFrame(tick);
+  }
+
+  function startLive(state) {
+    currentState = state;
+    setupScreen.style.display = 'none';
+    liveScreen.style.display = 'block';
+    lastSalaryPopupAt = 0;
+    lastCaloriePopupAt = 0;
+    lastCalorieMilestone = null;
+
+    const manualControls = document.getElementById('manualControls');
+    const manualBtn = document.getElementById('manualToggleBtn');
+    if (state.salaryMode === 'manual') {
+      manualControls.style.display = 'block';
+      manualBtn.textContent = state.manualStart ? '근무 종료' : '근무 시작';
+    } else {
+      manualControls.style.display = 'none';
+    }
+
+    if (rafId) cancelAnimationFrame(rafId);
+    tick();
+  }
+
+  document.getElementById('manualToggleBtn').addEventListener('click', () => {
+    playClickSound();
+    if (!currentState.manualStart) {
+      currentState.manualStart = new Date().toISOString();
+      document.getElementById('manualToggleBtn').textContent = '근무 종료';
+    } else {
+      currentState.manualStart = null;
+      document.getElementById('manualToggleBtn').textContent = '근무 시작';
+    }
+    saveState(currentState);
+  });
+
+  document.getElementById('startBtn').addEventListener('click', () => {
+    playClickSound();
+    const prev = loadState();
+    const state = collectState(prev ? prev.manualStart : null);
+    saveState(state);
+    startLive(state);
+  });
+
+  document.getElementById('editBtn').addEventListener('click', () => {
+    playClickSound();
+    if (rafId) cancelAnimationFrame(rafId);
+    liveScreen.style.display = 'none';
+    setupScreen.style.display = 'block';
+  });
+
+  // ---- Init ----
+  const saved = loadState();
+  if (saved) {
+    applyStateToForm(saved);
+    startLive(saved);
+  }
+})();
+</script>
+</body>
+</html>
